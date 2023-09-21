@@ -17,7 +17,7 @@ Especially if you have ideas and **EXCITEMENT** about the future of this project
 
 - killian
 """
-
+from .astradb import astradb_upsert
 from .cli import cli
 from .utils import merge_deltas, parse_partial_json
 from .message_block import MessageBlock
@@ -116,7 +116,9 @@ class Interpreter:
     self.azure_api_version = None
     self.azure_deployment_name = None
     self.azure_api_type = "azure"
-    
+    # astradb
+    self.store_astradb = False
+
     # Get default system message
     here = os.path.abspath(os.path.dirname(__file__))
     with open(os.path.join(here, 'system_message.txt'), 'r') as f:
@@ -281,6 +283,8 @@ class Interpreter:
       json_path = "messages.json"
     if not json_path.endswith(".json"):
       json_path += ".json"
+    if self.store_astradb:
+      astradb_upsert(self.messages)
     with open(json_path, 'w') as f:
       json.dump(self.messages, f, indent=2)
 
@@ -394,7 +398,7 @@ class Interpreter:
     if message:
       print(f"user message: {message}")
       # If it was, we respond non-interactivley
-      self.messages.append({"role": "user", "content": message})
+      self.messages.append({"role": "user", "content": message, "timestamp": int(time.time())})
       self.respond()
 
     else:
@@ -422,7 +426,7 @@ class Interpreter:
           continue
 
         # Add the user message to self.messages
-        self.messages.append({"role": "user", "content": user_input})
+        self.messages.append({"role": "user", "content": user_input, "timestamp": int(time.time())})
 
         # Respond, but gracefully handle CTRL-C / KeyboardInterrupt
         try:
@@ -770,7 +774,7 @@ class Interpreter:
       )
 
     # Initialize message, function call trackers, and active block
-    self.messages.append({})
+    self.messages.append({"timestamp": int(time.time())})
     in_function_call = False
     llama_function_call_finished = False
     self.active_block = None
@@ -838,6 +842,7 @@ class Interpreter:
               # Only overwrite what we have if it's not None (which means it failed to parse)
               self.messages[-1]["function_call"][
                 "parsed_arguments"] = new_parsed_arguments
+              self.messages[-1]["timestamp"] = int(time.time())
 
         elif self.local:
           # Code-Llama
@@ -880,6 +885,7 @@ class Interpreter:
               self.messages[-1]["function_call"] = {}
 
             self.messages[-1]["function_call"]["parsed_arguments"] = arguments
+            self.messages[-1]["timestamp"] = int(time.time())
 
       else:
         # We are not in a function call.
@@ -944,7 +950,8 @@ class Interpreter:
                 "name":
                 "run_code",
                 "content":
-                "User decided not to run this code."
+                "User decided not to run this code.",
+                "timestamp": int(time.time())
               })
               return
 
@@ -965,7 +972,8 @@ class Interpreter:
             self.messages.append({
               "role": "function",
               "name": "run_code",
-              "content": """Your function call could not be parsed. Please use ONLY the `run_code` function, which takes two parameters: `code` and `language`. Your response should be formatted as a JSON."""
+              "content": """Your function call could not be parsed. Please use ONLY the `run_code` function, which takes two parameters: `code` and `language`. Your response should be formatted as a JSON.""",
+              "timestamp": int(time.time())
             })
 
             self.respond()
@@ -990,7 +998,8 @@ class Interpreter:
           self.messages.append({
             "role": "function",
             "name": "run_code",
-            "content": self.active_block.output if self.active_block.output else "No output"
+            "content": self.active_block.output if self.active_block.output else "No output",
+            "timestamp": int(time.time())
           })
 
           # Go around again

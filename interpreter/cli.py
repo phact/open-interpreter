@@ -60,6 +60,7 @@ def cli(interpreter):
   LOCAL_RUN = os.getenv('INTERPRETER_CLI_LOCAL_RUN', 'False') == 'True'
   DEBUG = os.getenv('INTERPRETER_CLI_DEBUG', 'False') == 'True'
   USE_AZURE = os.getenv('INTERPRETER_CLI_USE_AZURE', 'False') == 'True'
+  STORE_ASTRADB = os.getenv('INTERPRETER_CLI_STORE_ASTRADB', 'False') == 'True'
 
   # Setup CLI
   parser = argparse.ArgumentParser(description='Chat with Open Interpreter.')
@@ -113,7 +114,12 @@ def cli(interpreter):
                       action='store_true',
                       default=USE_AZURE,
                       help='use Azure OpenAI Services')
-  
+
+  parser.add_argument('--store-astradb',
+                      action='store_true',
+                      default=STORE_ASTRADB,
+                      help='save messages in astradb')
+
   parser.add_argument('--version',
                       action='store_true',
                       help='display current Open Interpreter version')
@@ -140,6 +146,8 @@ def cli(interpreter):
     interpreter.auto_run = True
   if args.fast:
     interpreter.model = "gpt-3.5-turbo"
+  if args.store_astradb:
+    interpreter.store_astradb = True
   if args.local and not args.falcon:
 
 
